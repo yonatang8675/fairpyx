@@ -58,7 +58,7 @@ class Instance:
     >>> instance.agent_ranking("Alice", ["c2"])
     {'c2': 1, 'c1': 2}
 
-    ## dict of dicts:
+    ## dict of dicts, with weights:
     >>> instance = Instance(
     ...   agent_capacities = {"Alice": 2, "Bob": 2},
     ...   item_capacities  = {"c1": 2, "c2": 1},
@@ -165,7 +165,8 @@ class Instance:
 
         self.agent_capacity = agent_capacity_func or constant_function(len(self.items))
         self.item_weight = item_weight_func or constant_function(1)
-        self.agent_target_weight = agent_target_weight_func or constant_function(sum(self.item_weight(item) for item in self.items)) 
+        import math
+        self.agent_target_weight = agent_target_weight_func or constant_function(math.inf) 
         self.agent_entitlement = agent_entitlement_func or constant_function(1)
         self.item_capacity  = item_capacity_func  or constant_function(1)
         self.agent_item_value = agent_item_value_func
