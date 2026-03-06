@@ -645,7 +645,7 @@ def qp_max_min_allocation(instance: Instance, epsilon: float = 0.1) -> Dict[Any,
 
     Uses binary search over T, running Algorithm 1 (the purely combinatorial local
     search) at each step. The local search's success or failure determines whether
-    T is feasible — no LP is needed.
+    T is feasible.
 
     The approximation ratio is 1/(4+epsilon), matching the guarantee from the paper.
     The binary search converges when T_high - T_low < tolerance (1e-3).
