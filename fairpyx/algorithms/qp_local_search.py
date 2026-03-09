@@ -371,6 +371,11 @@ class AlternatingTree:
                      f"removed {len(keys_to_remove_A)} A-edges, {len(keys_to_remove_B)} B-edges")
 
 
+def is_satisfied(alloc: AllocationBuilder, agent, threshold: float) -> bool:
+    """Check if an agent's bundle value meets or exceeds the threshold."""
+    return alloc.instance.agent_bundle_value(agent, alloc.bundles.get(agent, [])) >= threshold
+
+
 def safe_swap(alloc: AllocationBuilder, player_losing: Any, items_losing, player_getting: Any, items_getting):
     """
     Transfer items between players in the matching.
@@ -438,11 +443,8 @@ def algorithm1_augment(alloc: AllocationBuilder, T: float, epsilon: float = 0.1)
     alpha = 4 + epsilon
     threshold = T / alpha
 
-    def is_satisfied(agent):
-        return sum(instance.agent_item_value(agent, item) for item in alloc.bundles.get(agent, [])) >= threshold
-
     # Find an unmatched (unsatisfied) player p0
-    unsatisfied_agents = [p for p in instance.agents if not is_satisfied(p)]
+    unsatisfied_agents = [p for p in instance.agents if not is_satisfied(alloc, p, threshold)]
     if not unsatisfied_agents:
         logger.info(f"[Algorithm 1] All players already satisfied at threshold {threshold:.2f}")
         return True
@@ -622,18 +624,12 @@ def qp_local_search(alloc: AllocationBuilder, T: float, epsilon: float = 0.1) ->
 
     logger.info(f"[Outer Loop] Starting: T={T:.2f}, threshold=T/alpha={threshold:.2f}, alpha={alpha:.2f}")
 
-    def is_satisfied(agent):
-        return sum(instance.agent_item_value(agent, item) for item in alloc.bundles.get(agent, [])) >= threshold
-
-    unsatisfied_count = sum(1 for p in instance.agents if not is_satisfied(p))
-    logger.info(f"[Outer Loop] Initial unsatisfied players: {unsatisfied_count}")
-
-    while any(not is_satisfied(p) for p in instance.agents):
+    while any(not is_satisfied(alloc, p, threshold) for p in instance.agents):
         # Call Algorithm 1: augment the matching by one player
         success = algorithm1_augment(alloc, T, epsilon)
         if not success:
             return False
-        unsatisfied_count = sum(1 for p in instance.agents if not is_satisfied(p))
+        unsatisfied_count = sum(1 for p in instance.agents if not is_satisfied(alloc, p, threshold))
         logger.info(f"[Outer Loop] Remaining unsatisfied: {unsatisfied_count}")
 
     logger.info(f"[Outer Loop] ALL PLAYERS SATISFIED at threshold T/alpha = {threshold:.2f}")
@@ -671,7 +667,7 @@ def qp_max_min_allocation(instance: Instance, epsilon: float = 0.1) -> Dict[Any,
 
     Each agent's value should meet the approximation guarantee:
     >>> alpha = 4.1
-    >>> all(sum(instance.agent_item_value(a, i) for i in b) >= 0 for a, b in result.items())
+    >>> all(sum(instance.agent_item_value(a, i) for i in b) >= alpha for a, b in result.items()) # 
     True
 
     Zero-value instance returns empty bundles:
@@ -696,13 +692,15 @@ def qp_max_min_allocation(instance: Instance, epsilon: float = 0.1) -> Dict[Any,
         return {agent: set() for agent in instance.agents}
 
     T_low = 0.0
-    T_high = max_total_value
+
+    # The paper's analysis shows that the optimal max-min value T_OPT is at most 4 times the maximum value any single agent can get from all items (since the approximation ratio is 1/(4+epsilon)). We add a small epsilon buffer to ensure we search above the true T_OPT.
+    T_high = max_total_value *(4 + epsilon)
     best_T = 0.0
     best_allocation = {agent: set() for agent in instance.agents}
     tolerance = 1e-3
 
     iteration = 0
-    max_iterations = int(math.log2(max_total_value / tolerance)) + 10
+    max_iterations = int(math.log2(T_high / tolerance)) + 10
     logger.info(f"[Binary Search] Range: [{T_low}, {T_high}], tolerance={tolerance}, max_iterations={max_iterations}")
 
     while T_high - T_low > tolerance and iteration < max_iterations:
@@ -711,11 +709,9 @@ def qp_max_min_allocation(instance: Instance, epsilon: float = 0.1) -> Dict[Any,
 
         logger.info(f"\n[Binary Search] Iteration {iteration}: testing T = {T_mid:.4f} (range [{T_low:.4f}, {T_high:.4f}])")
 
-        # Seed Algorithm 1 with the best matching found so far (empty on first iteration)
+        # Start with a fresh (empty) matching for each T — edge classifications (fat/thin)
+        # depend on T, so reusing a matching from a different T leads to incorrect classifications.
         alloc = AllocationBuilder(instance)
-        for agent, items in best_allocation.items():
-            for item in items:
-                alloc.give(agent, item)
         success = qp_local_search(alloc, T_mid, epsilon)
 
         if success:
