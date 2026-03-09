@@ -253,6 +253,7 @@ class AlternatingTree:
             edge_cost = self.get_distance(bundle, player, instance)
             total_dist = parent_dist + edge_cost
 
+            # Check if this edge is addable and better than the best found so far
             if total_dist <= max_distance:
                 is_root = (player == self.root)
                 if (is_root and not best_is_root) or \
@@ -428,7 +429,7 @@ def algorithm1_augment(alloc: AllocationBuilder, T: float, epsilon: float = 0.1)
         True if the matching was augmented (one more player now satisfied).
         False if no augmenting path exists (T_OPT < T, this T is infeasible).
 
-    >>> instance = Instance(valuations={"Alice": {"x": 10, "y": 20}, "Bob": {"x": 15, "y": 5}})
+    >>> instance = Instance(valuations={"Alice": {"x": 10, "y": 20, "z": 15}, "Bob": {"x": 10, "y": 20, "z": 15}})
     >>> alloc = AllocationBuilder(instance)
     >>> algorithm1_augment(alloc, T=20, epsilon=0.1)  # augments one player
     True
@@ -501,7 +502,7 @@ def algorithm1_augment(alloc: AllocationBuilder, T: float, epsilon: float = 0.1)
 
             edge_player = addable_edge['player']
             if edge_player != root_agent:
-                has_blocker = any(b['player'] == edge_player for b in alt_tree.B_edges.values())
+                has_blocker = any(b['player'] == edge_player for b in alt_tree.B_edges.values()) # check for a blocker that brought this player into the tree
                 if not has_blocker:
                     logger.warning(f"[Algorithm 1] Collapse skipped: player {edge_player} not connected to tree via B-edge")
                     continue
@@ -519,7 +520,7 @@ def algorithm1_augment(alloc: AllocationBuilder, T: float, epsilon: float = 0.1)
                     not set(curr_e['items']).isdisjoint(b_edge['items'])
                     for b_edge in alt_tree.B_edges.values()
                 )
-                if has_blocker:
+                if has_blocker: # if there is still a blocker, we cannot collapse this edge
                     logger.info(f"[Algorithm 1, line 8] Edge {curr_key} is now blocked -> exit collapse while loop")
                     break
 
@@ -603,7 +604,7 @@ def qp_local_search(alloc: AllocationBuilder, T: float, epsilon: float = 0.1) ->
         True if all players are satisfied (value >= T/alpha), False if the
         algorithm gets stuck (no addable edge found), meaning T is too high.
 
-    >>> instance = Instance(valuations={"Alice": {"x": 10, "y": 20}, "Bob": {"x": 15, "y": 5}})
+    >>> instance = Instance(valuations={"Alice": {"x": 10, "y": 20, "z": 15}, "Bob": {"x": 10, "y": 20, "z": 15}})
     >>> alloc = AllocationBuilder(instance)
     >>> qp_local_search(alloc, T=20, epsilon=0.1)  # threshold = 20/4.1 ≈ 4.88
     True
@@ -661,7 +662,7 @@ def qp_max_min_allocation(instance: Instance, epsilon: float = 0.1) -> Dict[Any,
         Allocation dict mapping each agent to a set of assigned items.
         Every agent's bundle value is >= best_T / (4 + epsilon).
 
-    >>> instance = Instance(valuations={"Alice": {"x": 10, "y": 20}, "Bob": {"x": 15, "y": 5}})
+    >>> instance = Instance(valuations={"Alice": {"x": 10, "y": 20, "z": 15}, "Bob": {"x": 10, "y": 20, "z": 15}})
     >>> result = qp_max_min_allocation(instance, epsilon=0.1)
     >>> set(result.keys()) == {"Alice", "Bob"}
     True
@@ -752,7 +753,7 @@ if __name__ == "__main__":
     instance = Instance(
         valuations={
             "Alice": {"item1": 10, "item2": 20, "item3": 30},
-            "Bob":   {"item1": 40, "item2": 50, "item3": 60},
+            "Bob":   {"item1": 10, "item2": 0, "item3": 30},
         }
     )
     allocation = qp_max_min_allocation(instance)
