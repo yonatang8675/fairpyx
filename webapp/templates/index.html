@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}QP Local Search - Restricted Max-Min Fair Allocation{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>Quasi-Polynomial Local Search</h1>
+    <p class="subtitle">Restricted Max-Min Fair Allocation Demo</p>
+</section>
+
+<!-- Algorithm explanation -->
+<div class="card">
+    <h3>The Problem: Restricted Max-Min Fair Allocation</h3>
+    <p>
+        Given a set of <strong>agents</strong> and <strong>indivisible items</strong>, allocate items so
+        the <strong>minimum total value any agent receives is maximized</strong> (the "Santa Claus" problem).
+    </p>
+    <p>This demo uses the <strong>Restricted Model</strong>:</p>
+    <ul>
+        <li>Each item has a fixed size <em>p<sub>j</sub></em>.</li>
+        <li>Each agent either wants the item (value = <em>p<sub>j</sub></em>) or doesn't (value = 0).</li>
+    </ul>
+    <p>
+        The algorithm by <strong>Polacek &amp; Svensson (2014)</strong> guarantees each agent gets
+        at least <em>OPT / (4 + &epsilon;)</em>.
+        It uses binary search over target value T, with an alternating-tree local search at each step.
+        <a href="https://arxiv.org/pdf/1205.1373" target="_blank">[Paper]</a>
+    </p>
+</div>
+
+<!-- Error display -->
+{% if error %}
+<div class="error-banner">
+    <strong>Error:</strong> {{ error }}
+</div>
+{% endif %}
+
+<!-- How to use -->
+<div class="card">
+    <h3>How to Use</h3>
+    <ol>
+        <li>Choose the number of <strong>agents</strong> and <strong>items</strong>, then click <strong>Build Table</strong> (or <strong>Random Input</strong> to auto-fill).</li>
+        <li>Give each item a <strong>size</strong> (a positive whole number). This is the item's value.</li>
+        <li><strong>Check the box</strong> in each cell where an agent wants that item. Unchecked means the agent values it at 0.</li>
+        <li>Click <strong>Run Algorithm</strong> to see the allocation on a new page.</li>
+    </ol>
+    <p class="note" style="margin-top:0.5rem;">
+        Each agent must want at least one item. All agent and item names must be filled in and unique.
+    </p>
+</div>
+
+<!-- Input form -->
+<div class="card">
+    <h3>Input</h3>
+
+    <div class="form-row" style="margin-bottom:1rem;">
+        <div class="form-group">
+            <label for="num_agents_picker">Agents:</label>
+            <input type="number" id="num_agents_picker" value="3" min="1" max="20" style="width:70px;">
+        </div>
+        <div class="form-group">
+            <label for="num_items_picker">Items:</label>
+            <input type="number" id="num_items_picker" value="5" min="1" max="50" style="width:70px;">
+        </div>
+        <div class="form-group">
+            <label for="epsilon_input">&epsilon;:</label>
+            <input type="number" id="epsilon_input" value="0.1" min="0.01" max="1.0" step="0.01" style="width:80px;">
+        </div>
+        <div class="form-group">
+            <label>&nbsp;</label>
+            <button type="button" class="btn" onclick="buildEmptyTable()">Build Table</button>
+        </div>
+        <div class="form-group">
+            <label>&nbsp;</label>
+            <button type="button" class="btn btn-secondary" onclick="generateRandom()">Random Input</button>
+        </div>
+    </div>
+
+    <p class="note" style="margin-bottom:0.5rem;">
+        Max 20 agents, 50 items, item sizes 1&ndash;1000. Check the box if an agent wants an item.
+    </p>
+
+    <form method="POST" action="/results" id="mainForm">
+        <input type="hidden" name="num_agents" id="num_agents_hidden">
+        <input type="hidden" name="num_items" id="num_items_hidden">
+        <input type="hidden" name="epsilon" id="epsilon_hidden">
+
+        <div id="tableContainer"></div>
+
+        <button type="submit" class="btn btn-primary" id="submitBtn" style="display:none; margin-top:1rem;">
+            Run Algorithm
+        </button>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Paper Reference</h3>
+    <p>
+        Polacek, L. &amp; Svensson, O. (2014).
+        <em>Quasi-Polynomial Local Search for Restricted Max-Min Fair Allocation.</em>
+        <a href="https://arxiv.org/pdf/1205.1373" target="_blank">arXiv:1205.1373</a>
+    </p>
+    <p>Programmer: Rotem Melamed</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MAX_AGENTS = 20;
+const MAX_ITEMS = 50;
+
+function buildTable(agents, items, itemSizes, valuations) {
+    const na = agents.length;
+    const ni = items.length;
+
+    document.getElementById('num_agents_hidden').value = na;
+    document.getElementById('num_items_hidden').value = ni;
+    document.getElementById('epsilon_hidden').value =
+        document.getElementById('epsilon_input').value;
+
+    let html = '<table class="valuation-table">';
+
+    // Header row: empty | item names
+    html += '<tr><th></th>';
+    for (let j = 0; j < ni; j++) {
+        html += `<th><input type="text" name="item_${j}" value="${items[j]}" class="val-input" style="width:80px;" placeholder="Item"></th>`;
+    }
+    html += '</tr>';
+
+    // Size row
+    html += '<tr><td><strong>Size (p<sub>j</sub>)</strong></td>';
+    for (let j = 0; j < ni; j++) {
+        const size = itemSizes[items[j]] || 1;
+        html += `<td><input type="number" name="size_${j}" value="${size}" min="1" max="1000" class="val-input" style="width:70px;"></td>`;
+    }
+    html += '</tr>';
+
+    // Agent rows with checkboxes
+    for (let i = 0; i < na; i++) {
+        html += `<tr><td><input type="text" name="agent_${i}" value="${agents[i]}" style="width:80px;" placeholder="Agent"></td>`;
+        for (let j = 0; j < ni; j++) {
+            const wants = valuations && valuations[agents[i]] && valuations[agents[i]][items[j]] > 0;
+            const checked = wants ? 'checked' : '';
+            html += `<td style="text-align:center">`;
+            html += `<input type="checkbox" ${checked} onchange="syncHidden(this, '${agents[i]}', '${items[j]}')">`;
+            html += `<input type="hidden" name="wants_${agents[i]}_${items[j]}" value="${wants ? '1' : '0'}">`;
+            html += `</td>`;
+        }
+        html += '</tr>';
+    }
+
+    html += '</table>';
+    document.getElementById('tableContainer').innerHTML = html;
+    document.getElementById('submitBtn').style.display = 'inline-block';
+}
+
+function syncHidden(cb, agent, item) {
+    cb.nextElementSibling.value = cb.checked ? '1' : '0';
+}
+
+// Before submit: re-sync hidden field names in case agent/item names were edited
+document.getElementById('mainForm').addEventListener('submit', function(e) {
+    const na = parseInt(document.getElementById('num_agents_hidden').value);
+    const ni = parseInt(document.getElementById('num_items_hidden').value);
+
+    // Read current names from inputs
+    const agents = [];
+    const items = [];
+    for (let i = 0; i < na; i++) {
+        agents.push(document.querySelector(`input[name="agent_${i}"]`).value.trim());
+    }
+    for (let j = 0; j < ni; j++) {
+        items.push(document.querySelector(`input[name="item_${j}"]`).value.trim());
+    }
+
+    // Rebuild hidden wants_ fields with current names
+    const checkboxes = document.querySelectorAll('.valuation-table input[type="checkbox"]');
+    let idx = 0;
+    for (let i = 0; i < na; i++) {
+        for (let j = 0; j < ni; j++) {
+            const cb = checkboxes[idx];
+            const hidden = cb.nextElementSibling;
+            hidden.name = `wants_${agents[i]}_${items[j]}`;
+            hidden.value = cb.checked ? '1' : '0';
+            idx++;
+        }
+    }
+
+    document.getElementById('epsilon_hidden').value =
+        document.getElementById('epsilon_input').value;
+});
+
+function buildEmptyTable() {
+    const na = Math.max(1, Math.min(MAX_AGENTS, parseInt(document.getElementById('num_agents_picker').value) || 3));
+    const ni = Math.max(1, Math.min(MAX_ITEMS, parseInt(document.getElementById('num_items_picker').value) || 5));
+
+    const agents = [];
+    const items = [];
+    for (let i = 0; i < na; i++) agents.push(`Agent_${i+1}`);
+    for (let j = 0; j < ni; j++) items.push(`Item_${j+1}`);
+
+    const sizes = {};
+    items.forEach(item => { sizes[item] = 1; });
+
+    buildTable(agents, items, sizes, null);
+}
+
+function generateRandom() {
+    const na = Math.max(1, Math.min(MAX_AGENTS, parseInt(document.getElementById('num_agents_picker').value) || 3));
+    const ni = Math.max(1, Math.min(MAX_ITEMS, parseInt(document.getElementById('num_items_picker').value) || 5));
+
+    fetch('/api/random', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({num_agents: na, num_items: ni})
+    })
+    .then(res => res.json())
+    .then(data => {
+        buildTable(data.agents, data.items, data.item_sizes, data.valuations);
+    });
+}
+</script>
+{% endblock %}
