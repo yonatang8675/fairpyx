@@ -31,7 +31,7 @@ def high_multiplicity_fair_allocation(alloc: AllocationBuilder):
 
       >>> agent_capacities = {"Ami": 2, "Tami": 2, "Rami": 2}
       >>> item_capacities = {"Fork": 2, "Knife": 2, "Pen": 2}
-      >>> valuations = { "Ami": {"Fork": 2, "Knife": 0, "Pen": 0}, "Rami": {"Fork": 0, "Knife": 1, "Pen": 1}, "Tami": {"Fork": 0, "Knife": 1, "Pen": 1} }
+      >>> valuations = { "Ami": {"Fork": 2, "Knife": 1, "Pen": 0}, "Rami": {"Fork": 0, "Knife": 1, "Pen": 2}, "Tami": {"Fork": 0, "Knife": 2, "Pen": 1} }
       >>> instance = Instance(agent_capacities=agent_capacities, item_capacities=item_capacities, valuations=valuations)
       >>> divide(high_multiplicity_fair_allocation, instance=instance)
       {'Ami': ['Fork', 'Fork'], 'Rami': ['Pen', 'Pen'], 'Tami': ['Knife', 'Knife']}
@@ -112,15 +112,15 @@ def find_envy_free_allocation(alloc: AllocationBuilder, allocation_variables, co
        - allocation_matrix : The allocation of items to agents as a matrix.
                                            maxtrix[i][j] = x -> times agent i gets item j.
     >>> item_capacities = {"Fork": 2, "Knife": 2, "Pen": 2}
-    >>> valuations = { "Ami": {"Fork": 2, "Knife": 0, "Pen": 0}, "Rami": {"Fork": 0, "Knife": 1, "Pen": 1}, "Tami": {"Fork": 0, "Knife": 1, "Pen": 1} }
+    >>> valuations = { "Ami": {"Fork": 2, "Knife": 0, "Pen": 0}, "Rami": {"Fork": 0, "Knife": 3, "Pen": 1}, "Tami": {"Fork": 0, "Knife": 1, "Pen": 4} }
     >>> instance = Instance(item_capacities=item_capacities, valuations=valuations)
     >>> alloc = AllocationBuilder(instance)
     >>> allocation_vars = cp.Variable((len(alloc.remaining_agents()), len(alloc.remaining_items())), integer=True)
     >>> alloc_X = find_envy_free_allocation(alloc, allocation_vars, [])
     >>> print(alloc_X)
     [[2 0 0]
-     [0 0 2]
-     [0 2 0]]
+     [0 2 0]
+     [0 0 2]]
     """
 
     logger.debug("Searching for envy-free allocation.")
@@ -185,32 +185,32 @@ def find_pareto_dominating_allocation(alloc: AllocationBuilder, alloc_matrix):
     >>> pareto_optimal_allocation = find_pareto_dominating_allocation(alloc, alloc_X)
     >>> print(pareto_optimal_allocation)
     [[2 0 0]
-     [0 1 2]
-     [0 1 0]]
+     [0 2 0]
+     [0 0 2]]
 
     >>> item_capacities = {"Fork": 3, "Knife": 3, "Pen": 3}
-    >>> valuations = {"Ami": {"Fork": 3, "Knife": 5, "Pen": 8}, "Rami": {"Fork": 5, "Knife": 7, "Pen": 5},"Tami": {"Fork": 4, "Knife": 1, "Pen": 11}}
+    >>> valuations = {"Ami": {"Fork": 9, "Knife": 5, "Pen": 8}, "Rami": {"Fork": 5, "Knife": 7, "Pen": 5},"Tami": {"Fork": 4, "Knife": 1, "Pen": 11}}
     >>> instance = Instance(item_capacities=item_capacities, valuations=valuations)
     >>> alloc = AllocationBuilder(instance)
     >>> alloc_X = np.array([[3, 0, 0], [0, 0, 3], [0, 3, 0]]) # -> {"Ami": ["Pen", "Fork"], "Tami": ["Knife", "Knife"], "Rami": ["Fork", "Pen"]}
     >>> pareto_optimal_allocation = find_pareto_dominating_allocation(alloc, alloc_X)
     >>> print(pareto_optimal_allocation)
-    [[2 0 1]
-     [0 1 2]
-     [1 2 0]]
+    [[3 0 0]
+     [0 3 0]
+     [0 0 3]]
 
 
     >>> item_capacities = {"Fork": 3, "Knife": 3, "Pen": 3}
-    >>> valuations = { "Ami": {"Fork": 2, "Knife": 0, "Pen": 0}, "Rami": {"Fork": 0, "Knife": 1, "Pen": 1}, "Tami": {"Fork": 0, "Knife": 1, "Pen": 1}, "Yumi": {"Fork": 4, "Knife": 5, "Pen": 6} }
+    >>> valuations = { "Ami": {"Fork": 2, "Knife": 0, "Pen": 0}, "Rami": {"Fork": 0, "Knife": 1, "Pen": 3}, "Tami": {"Fork": 0, "Knife": 1, "Pen": 5}, "Yumi": {"Fork": 4, "Knife": 5, "Pen": 2} }
     >>> instance = Instance(item_capacities=item_capacities, valuations=valuations)
     >>> alloc = AllocationBuilder(instance)
     >>> alloc_X = np.array([[1, 0, 1], [0, 2, 0], [1, 0, 1], [1, 1, 1]]) # -> {"Ami": ["Pen", "Fork"], "Tami": ["Knife", "Knife"], "Rami": ["Fork", "Pen"]}
     >>> pareto_optimal_allocation = find_pareto_dominating_allocation(alloc, alloc_X)
     >>> print(pareto_optimal_allocation)
-    [[1 0 0]
-     [0 3 0]
-     [1 0 1]
-     [1 0 2]]
+    [[3 0 0]
+     [0 0 2]
+     [0 0 1]
+     [0 3 0]]
 
     """
 
