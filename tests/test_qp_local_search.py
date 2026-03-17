@@ -41,7 +41,7 @@ def test_single_agent_single_item():
     instance = Instance(valuations={"p0": {"r1": 10}})
 
     result = qp_max_min_allocation(instance, epsilon=0.1)
-    assert result == {'p0': {'r1'}}
+    assert result == {'p0': ['r1']}
     fairpyx.validate_allocation(instance, result, title="test_single_agent_single_item")
     assert_threshold(instance, result, opt=10)
 
@@ -118,7 +118,7 @@ def test_zero_value_item():
     instance = Instance(valuations={"p0": {"r1": 0}})
 
     result = qp_max_min_allocation(instance, epsilon=0.1)
-    assert result == {"p0": set()}
+    assert result == {"p0": []}
 
 
 def test_single_dominant_item():

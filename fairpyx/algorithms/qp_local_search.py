@@ -13,14 +13,6 @@ from typing import Set, Dict, List, Optional, Any
 import math
 import logging
 
-orig_sorted = AllocationBuilder.sorted
-
-def patched_sorted(self):
-    bundles = orig_sorted(self)
-    return {agent: set(items) for agent, items in bundles.items()}
-
-AllocationBuilder.sorted = patched_sorted
-
 
 # --- Logging Setup ---
 logger = logging.getLogger("QP_Local_Search")
@@ -693,7 +685,7 @@ def qp_max_min_allocation(instance: Instance, epsilon: float = 0.1) -> Dict[Any,
 
     if max_total_value == 0:
         logger.warning("All items have zero value for all agents")
-        return {agent: set() for agent in instance.agents}
+        return {agent: [] for agent in instance.agents}
 
     T_low = 0.0
 
@@ -735,7 +727,7 @@ def qp_max_min_allocation(instance: Instance, epsilon: float = 0.1) -> Dict[Any,
 
     if best_T == 0.0:
         logger.warning("No feasible allocation found")
-        return {agent: set() for agent in instance.agents}
+        return {agent: [] for agent in instance.agents}
 
     # Post-processing: assign remaining unallocated items greedily.
     # The core algorithm only allocates enough items to meet the threshold,
@@ -749,7 +741,7 @@ def qp_max_min_allocation(instance: Instance, epsilon: float = 0.1) -> Dict[Any,
     if remaining_items:
         logger.info(f"\n[Post-processing] {len(remaining_items)} unallocated items: {remaining_items}")
         bundle_values = {
-            agent: sum(instance.agent_item_value(agent, item) for item in best_allocation.get(agent, set()))
+            agent: sum(instance.agent_item_value(agent, item) for item in best_allocation.get(agent, []))
             for agent in instance.agents
         }
         for item in remaining_items:
@@ -759,7 +751,7 @@ def qp_max_min_allocation(instance: Instance, epsilon: float = 0.1) -> Dict[Any,
                 continue
             # Assign to the candidate with the lowest current bundle value
             best_agent = min(candidates, key=lambda a: bundle_values[a])
-            best_allocation[best_agent].add(item)
+            best_allocation[best_agent].append(item)
             bundle_values[best_agent] += instance.agent_item_value(best_agent, item)
             logger.info(f"  Assigned {item} to {best_agent} (bundle_value now={bundle_values[best_agent]:.4f})")
 
