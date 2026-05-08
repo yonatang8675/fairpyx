@@ -10,7 +10,13 @@ Date: 20-04-2026
 """
 
 
-def exact_equal_shares(voters: list, projects: list, approvals: dict, costs: dict, budget: float, utilities: dict = None) -> tuple:
+def exact_equal_shares(
+        voters: list, 
+        projects: list, 
+        approvals: dict, 
+        costs: dict, 
+        budget: float, 
+        utilities: dict = None) -> tuple:
     """
     Algorithm 1: EES for uniform utilities.
 
@@ -61,9 +67,7 @@ def greedy_project_change(
     costs: dict,
     budget: float,
     current_solution: tuple,
-    project: str,
-    leftover_budgets: list,
-    leximax_payments: list,
+    project: str
 ) -> float:
     """
     Algorithm 2: GreedyProjectChange (GPC).
@@ -116,9 +120,7 @@ def greedy_project_change(
     >>> budget = 40
     >>> current_solution = (['p1', 'p2'], {'v1': {'p1': 1.0}, 'v2': {'p1': 1.0}, 'v3': {'p2': 1.6}, 'v4': {'p2': 1.6}, 'v5': {}})
     >>> project = 'p3'
-    >>> leftover_budgets = [('v3', 0.4), ('v4', 0.4), ('v2', 1.0), ('v5', 2.0)]
-    >>> leximax_payments = [('v5', []), ('v2', [1.0]), ('v3', [1.6]), ('v4', [1.6])]
-    >>> greedy_project_change(voters, projects, approvals, costs, budget, current_solution, project, leftover_budgets, leximax_payments)
+    >>> greedy_project_change(voters, projects, approvals, costs, budget, current_solution, project)
     0.5
     """
     return None
