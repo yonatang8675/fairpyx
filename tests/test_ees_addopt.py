@@ -213,13 +213,13 @@ def test_addopt_finds_improvement():
 # random instances should stay valid after EES, GPC, and rerun EES.
 def test_random_ees_gpc_rerun(num_voters, num_projects):
     """
-    Full pipeline on random instances:
-    1) Generate random instance
-    2) Run EES, validate result
-    3) Pick an unselected project, run GPC to get delta
-    4) Re-run EES with increased budget (budget + n*delta)
-    5) Validate new EES result
-    6) Check that the GPC project is now selected
+    full random test:
+    1. generate random instance
+    2. run EES and validate result
+    3. choose unselected projectand run GPC
+    4. run EES with bigger budget
+    5. validate new EES result
+    6. check GPC project now selected
     """
     import random
     rng = random.Random()
