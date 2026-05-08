@@ -55,7 +55,47 @@ def exact_equal_shares(
     >>> costs = {'p1': 10, 'p2': 16, 'p3': 21}
     >>> budget = 40
     >>> exact_equal_shares(voters, projects, approvals, costs, budget)
-    (['p1', 'p2'], {'v1': {'p1': 5.0}, 'v2': {'p1': 5.0}, 'v3': {'p2': 8.0}, 'v4': {'p2': 8.0}})
+    (['p1', 'p2'], {'v1': {'p1': 5}, 'v2': {'p1': 5}, 'v3': {'p2': 8}, 'v4': {'p2': 8}})
+
+    >>> voters = ['v1', 'v2', 'v3', 'v4']
+    >>> projects = ['p1', 'p2', 'p3']
+    >>> approvals = {'v1': {'p1'}, 'v2': {'p1', 'p3'}, 'v3': {'p2', 'p3'}, 'v4': {'p2', 'p3'}}
+    >>> costs = {'p1': 10, 'p2': 16, 'p3': 21}
+    >>> budget = 48
+    >>> exact_equal_shares(voters, projects, approvals, costs, budget)
+    (['p1', 'p3'], {'v1': {'p1': 5}, 'v2': {'p1': 5, 'p3': 7}, 'v3': {'p3': 7}, 'v4': {'p3': 7}})
+
+    >>> voters = ['v1', 'v2', 'v3']
+    >>> projects = ['p1', 'p2', 'p3', 'p4']
+    >>> approvals = {'v1': {'p1', 'p2'}, 'v2': {'p2', 'p3'}, 'v3': {'p3', 'p4'}}
+    >>> costs = {'p1': 2, 'p2': 98, 'p3': 100, 'p4': 51}
+    >>> budget = 150
+    >>> exact_equal_shares(voters, projects, approvals, costs, budget)
+    (['p1', 'p3'], {'v1': {'p1': 2}, 'v2': {'p3': 50}, 'v3': {'p3': 50}})
+
+    >>> voters = ['v1', 'v2', 'v3']
+    >>> projects = ['p1', 'p2', 'p3', 'p4']
+    >>> approvals = {'v1': {'p1', 'p2'}, 'v2': {'p2', 'p3'}, 'v3': {'p3', 'p4'}}
+    >>> costs = {'p1': 2, 'p2': 98, 'p3': 100, 'p4': 51}
+    >>> budget = 153
+    >>> exact_equal_shares(voters, projects, approvals, costs, budget)
+    (['p1', 'p2', 'p4'], {'v1': {'p1': 2, 'p2': 49}, 'v2': {'p2': 49}, 'v3': {'p4': 51}})
+
+    >>> voters = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10']
+    >>> projects = ['p1', 'p2', 'p3', 'p4', 'p5']
+    >>> approvals = {'v1': {'p2', 'p3'}, 'v2': {'p1', 'p3'}, 'v3': {'p3', 'p4'}, 'v4': {'p1'}, 'v5': {'p1'}, 'v6': {'p2'}, 'v7': {'p1'}, 'v8': {'p1'}, 'v9': {'p4'}, 'v10': {'p5'}}
+    >>> costs = {'p1': 20, 'p2': 18, 'p3': 20, 'p4': 8, 'p5': 15}
+    >>> budget = 100
+    >>> exact_equal_shares(voters, projects, approvals, costs, budget)
+    (['p1', 'p2', 'p4'], {'v1': {'p2': 9}, 'v2': {'p1': 4}, 'v3': {'p4': 4}, 'v4': {'p1': 4}, 'v5': {'p1': 4}, 'v6': {'p2': 9}, 'v7': {'p1': 4}, 'v8': {'p1': 4}, 'v9': {'p4': 4}, 'v10': {}})
+
+    >>> voters = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10']
+    >>> projects = ['p1', 'p2', 'p3', 'p4', 'p5']
+    >>> approvals = {'v1': {'p2', 'p3'}, 'v2': {'p1', 'p3'}, 'v3': {'p3', 'p4'}, 'v4': {'p1'}, 'v5': {'p1'}, 'v6': {'p2'}, 'v7': {'p1'}, 'v8': {'p1'}, 'v9': {'p4'}, 'v10': {'p5'}}
+    >>> costs = {'p1': 20, 'p2': 18, 'p3': 20, 'p4': 8, 'p5': 15}
+    >>> budget = 106 + 2/3
+    >>> exact_equal_shares(voters, projects, approvals, costs, budget)
+    (['p1', 'p3', 'p4'], {'v1': {'p3': 6 + 2/3}, 'v2': {'p1': 4, 'p3': 6 + 2/3}, 'v3': {'p4': 4, 'p3': 6 + 2/3}, 'v4': {'p1': 4}, 'v5': {'p1': 4}, 'v6': {}, 'v7': {'p1': 4}, 'v8': {'p1': 4}, 'v9': {'p4': 4}, 'v10': {}})
     """
     return None
 
@@ -97,13 +137,6 @@ def greedy_project_change(
         X : dict  - X[voter][project] = payment.
     project : str
         The candidate project p to test instability for.
-    leftover_budgets : list of (voter, residual)
-        Sorted ascending by residual budget.
-        Only voters in Op(X) (those who approve *project* and are not
-        already paying for it in the current solution).
-    leximax_payments : list of (voter, payment_vector)
-        Sorted lex-ascending by their payment vectors in (W, X).
-        Only voters in Op(X).
 
     Returns
     -------
@@ -113,15 +146,45 @@ def greedy_project_change(
 
     Examples
     --------
+    >>> voters = ['v1', 'v2', 'v3', 'v4', 'v5']
+    >>> projects = ['p1', 'p2', 'p3']
+    >>> approvals = {'v1': {'p1'}, 'v2': {'p1', 'p3'}, 'v3': {'p2', 'p3'}, 'v4': {'p2', 'p3'}, 'v5': {'p3'}}
+    >>> costs = {'p1': 2, 'p2': 3.2, 'p3': 6}
+    >>> budget = 10
+    >>> current_solution = (['p1', 'p2'], {'v1': {'p1': 1}, 'v2': {'p1': 1}, 'v3': {'p2': 1.6}, 'v4': {'p2': 1.6}, 'v5': {}})
+    >>> project = 'p3'
+    >>> greedy_project_change(voters, projects, approvals, costs, budget, current_solution, project)
+    0.5
+
     >>> voters = ['v1', 'v2', 'v3', 'v4']
     >>> projects = ['p1', 'p2', 'p3']
     >>> approvals = {'v1': {'p1'}, 'v2': {'p1', 'p3'}, 'v3': {'p2', 'p3'}, 'v4': {'p2', 'p3'}}
     >>> costs = {'p1': 10, 'p2': 16, 'p3': 21}
     >>> budget = 40
-    >>> current_solution = (['p1', 'p2'], {'v1': {'p1': 1.0}, 'v2': {'p1': 1.0}, 'v3': {'p2': 1.6}, 'v4': {'p2': 1.6}, 'v5': {}})
+    >>> current_solution = (['p1', 'p2'], {'v1': {'p1': 5}, 'v2': {'p1': 5}, 'v3': {'p2': 8}, 'v4': {'p2': 8}})
     >>> project = 'p3'
     >>> greedy_project_change(voters, projects, approvals, costs, budget, current_solution, project)
-    0.5
+    2
+
+    >>> voters = ['v1', 'v2', 'v3']
+    >>> projects = ['p1', 'p2', 'p3', 'p4']
+    >>> approvals = {'v1': {'p1', 'p2'}, 'v2': {'p2', 'p3'}, 'v3': {'p3', 'p4'}}
+    >>> costs = {'p1': 2, 'p2': 98, 'p3': 100, 'p4': 51}
+    >>> budget = 150
+    >>> current_solution = (['p1', 'p3'], {'v1': {'p1': 2}, 'v2': {'p3': 50}, 'v3': {'p3': 50}})
+    >>> project = 'p4'
+    >>> greedy_project_change(voters, projects, approvals, costs, budget, current_solution, project)
+    51
+
+    >>> voters = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10']
+    >>> projects = ['p1', 'p2', 'p3', 'p4', 'p5']
+    >>> approvals = {'v1': {'p2', 'p3'}, 'v2': {'p1', 'p3'}, 'v3': {'p3', 'p4'}, 'v4': {'p1'}, 'v5': {'p1'}, 'v6': {'p2'}, 'v7': {'p1'}, 'v8': {'p1'}, 'v9': {'p4'}, 'v10': {'p5'}}
+    >>> costs = {'p1': 20, 'p2': 18, 'p3': 20, 'p4': 8, 'p5': 15}
+    >>> budget = 100
+    >>> current_solution = (['p1', 'p2', 'p4'], {'v1': {'p2': 9}, 'v2': {'p1': 4}, 'v3': {'p4': 4}, 'v4': {'p1': 4}, 'v5': {'p1': 4}, 'v6': {'p2': 9}, 'v7': {'p1': 4}, 'v8': {'p1': 4}, 'v9': {'p4': 4}, 'v10': {}})
+    >>> project = 'p3'
+    >>> greedy_project_change(voters, projects, approvals, costs, budget, current_solution, project)
+    2/3
     """
     return None
 
@@ -133,8 +196,6 @@ def add_opt(
     costs: dict,
     budget: float,
     current_solution: tuple,
-    sorted_leftover: list,
-    sorted_leximax: list,
 ) -> float:
     """
     Algorithm 3: add-opt.
@@ -159,12 +220,6 @@ def add_opt(
     current_solution : tuple (W, X)
         W : list  - currently selected projects.
         X : dict  - X[voter][project] = payment.
-    sorted_leftover : list of (voter, residual)
-        A = [(v1, r_v1), …, (vn, r_vn)] sorted ascending by residual,
-        covering *all* voters.
-    sorted_leximax : list of (voter, payment_vector)
-        B = [(w1, cw1), …, (wn, cwn)] sorted lex-ascending,
-        covering *all* voters.
 
     Returns
     -------
@@ -180,10 +235,8 @@ def add_opt(
     >>> approvals = {'v1': {'p1'}, 'v2': {'p1', 'p3'}, 'v3': {'p2', 'p3'}, 'v4': {'p2', 'p3'}, 'v5': {'p3'}}
     >>> costs = {'p1': 2, 'p2': 3.2, 'p3': 6}
     >>> budget = 10
-    >>> current_solution = (['p1', 'p2'], {'v1': {'p1': 1.0}, 'v2': {'p1': 1.0}, 'v3': {'p2': 1.6}, 'v4': {'p2': 1.6}, 'v5': {}})
-    >>> sorted_leftover = [('v3', 0.4), ('v4', 0.4), ('v1', 1.0), ('v2', 1.0), ('v5', 2.0)]
-    >>> sorted_leximax = [('v5', []), ('v1', [1.0]), ('v2', [1.0]), ('v3', [1.6]), ('v4', [1.6])]
-    >>> add_opt(voters, projects, approvals, costs, budget, current_solution, sorted_leftover, sorted_leximax)
+    >>> current_solution = (['p1', 'p2'], {'v1': {'p1': 1}, 'v2': {'p1': 1}, 'v3': {'p2': 1.6}, 'v4': {'p2': 1.6}, 'v5': {}})
+    >>> add_opt(voters, projects, approvals, costs, budget, current_solution)
     0.5
     """
     return None
