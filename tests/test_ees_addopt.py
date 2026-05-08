@@ -22,28 +22,28 @@ def test_ees_nothing_to_select():
 
 # project above budget should not selected
 def test_ees_single_project_too_expensive():
-    voters = ["Alice", "Bob"]
-    projects = ["park"]
-    approvals = {"Alice": {"park"}, "Bob": {"park"}}
-    costs = {"park": 200}
+    voters = ["v1", "v2"]
+    projects = ["p1"]
+    approvals = {"v1": {"p1"}, "v2": {"p1"}}
+    costs = {"p1": 200}
     budget = 50
 
     selected, _ = exact_equal_shares(voters, projects, approvals, costs, budget)
-    assert "park" not in selected
+    assert "p1" not in selected
 
 
 # one approved project should split cost evenly.
 def test_ees_cost_split_equally():
-    voters = ["Alice", "Bob"]
-    projects = ["park"]
-    approvals = {"Alice": {"park"}, "Bob": {"park"}}
-    costs = {"park": 10}
+    voters = ["v1", "v2"]
+    projects = ["p1"]
+    approvals = {"v1": {"p1"}, "v2": {"p1"}}
+    costs = {"p1": 10}
     budget = 10
 
     selected, payments = exact_equal_shares(voters, projects, approvals, costs, budget)
-    assert "park" in selected
-    assert payments["Alice"]["park"] == pytest.approx(5)
-    assert payments["Bob"]["park"] == pytest.approx(5)
+    assert "p1" in selected
+    assert payments["v1"]["p1"] == pytest.approx(5)
+    assert payments["v2"]["p1"] == pytest.approx(5)
 
 
 # paper example
@@ -61,10 +61,10 @@ def test_ees_multiple_projects():
 
 # no approvals
 def test_ees_no_approvals_means_nothing_funded():
-    voters = ["Alice", "Bob", "Carol"]
-    projects = ["park", "library"]
-    approvals = {"Alice": set(), "Bob": set(), "Carol": set()}
-    costs = {"park": 10, "library": 15}
+    voters = ["v1", "v2", "v3"]
+    projects = ["p1", "p2"]
+    approvals = {"v1": set(), "v2": set(), "v3": set()}
+    costs = {"p1": 10, "p2": 15}
     budget = 100
 
     selected, _ = exact_equal_shares(voters, projects, approvals, costs, budget)
@@ -95,43 +95,43 @@ def test_ees_budget_feasibility():
 
 # non cost projects should return zero delta
 def test_gpc_free_project_needs_zero_increase():
-    voters = ["Alice"]
-    projects = ["free_item"]
-    approvals = {"Alice": {"free_item"}}
-    costs = {"free_item": 0}
+    voters = ["v1"]
+    projects = ["p1"]
+    approvals = {"v1": {"p1"}}
+    costs = {"p1": 0}
     budget = 10
     solution = ([], {})
 
     delta = greedy_project_change(voters, projects, approvals, costs, budget,
-                                  solution, "free_item")
+                                  solution, "p1")
     assert delta == pytest.approx(0)
 
 
 # enough leftover should return zero delta
 def test_gpc_leftover_covers_cost_exactly():
-    voters = ["Alice", "Bob", "Carol"]
-    projects = ["bench"]
-    approvals = {"Alice": {"bench"}, "Bob": {"bench"}, "Carol": {"bench"}}
-    costs = {"bench": 12}
+    voters = ["v1", "v2", "v3"]
+    projects = ["p1"]
+    approvals = {"v1": {"p1"}, "v2": {"p1"}, "v3": {"p1"}}
+    costs = {"p1": 12}
     budget = 15
     solution = ([], {})
 
     delta = greedy_project_change(voters, projects, approvals, costs, budget,
-                                  solution, "bench")
+                                  solution, "p1")
     assert delta == pytest.approx(0)
 
 
 #  not enough leftover should returb positive delta
 def test_gpc_not_enough_leftover():
-    voters = ["Alice", "Bob", "Carol"]
-    projects = ["statue"]
-    approvals = {"Alice": {"statue"}, "Bob": {"statue"}, "Carol": {"statue"}}
-    costs = {"statue": 30}
+    voters = ["v1", "v2", "v3"]
+    projects = ["p1"]
+    approvals = {"v1": {"p1"}, "v2": {"p1"}, "v3": {"p1"}}
+    costs = {"p1": 30}
     budget = 6
     solution = ([], {})
 
     delta = greedy_project_change(voters, projects, approvals, costs, budget,
-                                  solution, "statue")
+                                  solution, "p1")
     assert delta > 0
 
 
@@ -175,12 +175,12 @@ def test_addopt_nothing_to_add():
 
 # if all projects funded should not improve
 def test_addopt_all_projects_already_funded():
-    voters = ["Alice"]
-    projects = ["park"]
-    approvals = {"Alice": {"park"}}
-    costs = {"park": 5}
+    voters = ["v1"]
+    projects = ["p1"]
+    approvals = {"v1": {"p1"}}
+    costs = {"p1": 5}
     budget = 10
-    solution = (["park"], {"Alice": {"park": 5.0}})
+    solution = (["p1"], {"v1": {"p1": 5.0}})
 
     delta = add_opt(voters, projects, approvals, costs, budget,
                     solution)
