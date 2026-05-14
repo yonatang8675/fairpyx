@@ -28,7 +28,7 @@ def test_ees_single_project_too_expensive():
     costs = {"p1": 200}
     budget = 50
 
-    selected, _ = exact_equal_shares(voters, projects, approvals, costs, budget)
+    selected, payments = exact_equal_shares(voters, projects, approvals, costs, budget)
     assert "p1" not in selected
 
 
@@ -67,7 +67,7 @@ def test_ees_no_approvals_means_nothing_funded():
     costs = {"p1": 10, "p2": 15}
     budget = 100
 
-    selected, _ = exact_equal_shares(voters, projects, approvals, costs, budget)
+    selected, payments = exact_equal_shares(voters, projects, approvals, costs, budget)
     assert selected == []
 
 
@@ -81,9 +81,8 @@ def test_ees_budget_feasibility():
     budget = 10
 
     selected, payments = exact_equal_shares(voters, projects, approvals, costs, budget)
-
     total_paid = sum(payments.get(v, {}).get(p, 0) for v in voters for p in selected)
-    assert total_paid <= budget + 0.01
+    assert total_paid <= budget
 
     # Each funded project is fully covered
     for proj in selected:
@@ -102,8 +101,7 @@ def test_gpc_free_project_needs_zero_increase():
     budget = 10
     solution = ([], {})
 
-    delta = greedy_project_change(voters, projects, approvals, costs, budget,
-                                  solution, "p1")
+    delta = greedy_project_change(voters, projects, approvals, costs, budget,solution, "p1")
     assert delta == pytest.approx(0)
 
 
@@ -116,8 +114,7 @@ def test_gpc_leftover_covers_cost_exactly():
     budget = 15
     solution = ([], {})
 
-    delta = greedy_project_change(voters, projects, approvals, costs, budget,
-                                  solution, "p1")
+    delta = greedy_project_change(voters, projects, approvals, costs, budget, solution, "p1")
     assert delta == pytest.approx(0)
 
 
@@ -130,8 +127,7 @@ def test_gpc_not_enough_leftover():
     budget = 6
     solution = ([], {})
 
-    delta = greedy_project_change(voters, projects, approvals, costs, budget,
-                                  solution, "p1")
+    delta = greedy_project_change(voters, projects, approvals, costs, budget, solution, "p1")
     assert delta > 0
 
 
@@ -139,15 +135,12 @@ def test_gpc_not_enough_leftover():
 def test_gpc_paper_example():
     voters = ["v1", "v2", "v3", "v4", "v5"]
     projects = ["p1", "p2", "p3"]
-    approvals = {"v1": {"p1"}, "v2": {"p1", "p3"}, "v3": {"p2", "p3"},
-                 "v4": {"p2", "p3"}, "v5": {"p3"}}
+    approvals = {"v1": {"p1"}, "v2": {"p1", "p3"}, "v3": {"p2", "p3"}, "v4": {"p2", "p3"}, "v5": {"p3"}}
     costs = {"p1": 2, "p2": 3.2, "p3": 6}
     budget = 10
-    solution = (["p1", "p2"], {"v1": {"p1": 1}, "v2": {"p1": 1},
-                               "v3": {"p2": 1.6}, "v4": {"p2": 1.6}, "v5": {}})
+    solution = (["p1", "p2"], {"v1": {"p1": 1}, "v2": {"p1": 1}, "v3": {"p2": 1.6}, "v4": {"p2": 1.6}, "v5": {}})
 
-    delta = greedy_project_change(voters, projects, approvals, costs, budget,
-                                  solution, "p3")
+    delta = greedy_project_change(voters, projects, approvals, costs, budget, solution, "p3")
     assert delta == pytest.approx(0.5)
 
 
@@ -160,8 +153,7 @@ def test_gpc_with_existing_selection():
     budget = 10
     solution = (["p1"], {"v1": {"p1": 5.0}, "v2": {}})
 
-    delta = greedy_project_change(voters, projects, approvals, costs, budget,
-                                  solution, "p2")
+    delta = greedy_project_change(voters, projects, approvals, costs, budget, solution, "p2")
     assert delta >= 0
 
 
@@ -169,7 +161,14 @@ def test_gpc_with_existing_selection():
 
 # empty input should return not 0 or infinite
 def test_addopt_nothing_to_add():
-    delta = add_opt([], [], {}, {}, 0, ([], {}))
+    voters = []
+    projects = []
+    approvals = {}
+    costs = {}
+    budget = 0
+    solution = ([], {})
+
+    delta = add_opt(voters, projects, approvals, costs, budget, solution)
     assert delta >= 0 or delta == float("inf")
 
 
@@ -182,8 +181,7 @@ def test_addopt_all_projects_already_funded():
     budget = 10
     solution = (["p1"], {"v1": {"p1": 5.0}})
 
-    delta = add_opt(voters, projects, approvals, costs, budget,
-                    solution)
+    delta = add_opt(voters, projects, approvals, costs, budget, solution)
     assert delta >= 0 or delta == float("inf")
 
 
@@ -211,7 +209,7 @@ def test_addopt_finds_improvement():
     (20, 20),
 ])
 # random instances should stay valid after EES, GPC, and rerun EES.
-def test_random_ees_gpc_rerun(num_voters, num_projects):
+def test_random_ees_gpc_rerun(num_voters, num_projects, test_times=5, approval_prob=0.4, budget_factor=(0.4, 0.8)):
     """
     full random test:
     1. generate random instance
@@ -224,24 +222,24 @@ def test_random_ees_gpc_rerun(num_voters, num_projects):
     import random
     rng = random.Random()
 
-    for seed in range(5):
+    for seed in range(test_times):
         rng.seed(seed)
 
         voters = [f"v{i}" for i in range(num_voters)]
-        projects = [f"p{j}" for j in range(num_projects)]
+        projects = [f"p{i}" for i in range(num_projects)]
         costs = {p: rng.randint(0, 100) for p in projects}
-        # approves with 40% probability
-        approvals = {v: {p for p in projects if rng.random() < 0.4} for v in voters}
-        # 40%-70% of total costs
+        # approves with approval_prob probability
+        approvals = {v: {p for p in projects if rng.random() < approval_prob} for v in voters}
+        # budget_factor (min, max) of total costs
         total_cost = sum(costs.values())
-        budget = int(total_cost * rng.uniform(0.4, 0.7))
+        budget = int(total_cost * rng.uniform(*budget_factor))
 
         # run EES
         selected, payments = exact_equal_shares(voters, projects, approvals, costs, budget)
 
         # validate EES result
         total = sum(payments.get(v, {}).get(p, 0) for v in voters for p in selected)
-        assert total <= budget + 0.01, f"seed={seed}: EES exceeded budget"
+        assert total <= budget, f"seed={seed}: EES exceeded budget"
         for p in selected:
             paid = sum(payments.get(v, {}).get(p, 0) for v in voters)
             assert paid == pytest.approx(costs[p]), f"seed={seed}: project {p} not covered after increase"
@@ -260,7 +258,6 @@ def test_random_ees_gpc_rerun(num_voters, num_projects):
                 unselected.append(p)
         if not unselected:
             continue  # nothing to test
-
         target_project = rng.choice(unselected)
 
         # run GPC
@@ -273,7 +270,7 @@ def test_random_ees_gpc_rerun(num_voters, num_projects):
 
         # validate EES result
         new_total = sum(new_payments.get(v, {}).get(p, 0) for v in voters for p in new_selected)
-        assert new_total <= new_budget + 0.01, f"seed={seed}: new EES exceeded budget"
+        assert new_total <= new_budget, f"seed={seed}: new EES exceeded budget"
         for p in new_selected:
             paid = sum(new_payments.get(v, {}).get(p, 0) for v in voters)
             assert paid == pytest.approx(costs[p]), f"seed={seed}: project {p} not covered after increase"

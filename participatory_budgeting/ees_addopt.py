@@ -1,7 +1,5 @@
 """
-An implementation of the algorithms in:
-
-"Streamlining Equal Shares", 
+An implementation of the algorithms in "Streamlining Equal Shares", 
 by Sonja Kraiczy, Isaac Robinson, Edith Elkind (2024), 
 https://arxiv.org/abs/2502.11797
 
@@ -141,8 +139,7 @@ def greedy_project_change(
     Returns
     -------
     float
-        Minimum per-voter budget increase d (may be +∞ if the project
-        can never certify instability).
+        Minimum per-voter budget increase d.
 
     Examples
     --------
